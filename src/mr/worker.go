@@ -55,7 +55,7 @@ func Worker(mapf func(string, string) []KeyValue,
 	doneTask := DoneTaskArgs{WorkerID: workerID}
 	addedTask := &AddedTaskRly{}
 	for true {
-		if call("Coordinator:ApplyTask", doneTask, addedTask) {
+		if call("Coordinator.ApplyTask", doneTask, addedTask) {
 			if addedTask.TaskType == FINISHED {
 				log.Printf("Received job finish signal from coordinator")
 				break
