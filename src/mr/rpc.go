@@ -69,7 +69,6 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 
 			}
 			c.mu.Unlock()
-
 		}
 
 	}
@@ -81,6 +80,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	}
 	log.Printf("Assign %s task %d to worker %d\n", task.Type, task.Index, doneTask.WorkerID)
 	c.mu.Lock()
+	log.Println("获得新派任务锁")
 	defer c.mu.Unlock()
 	task.WorkerID = doneTask.WorkerID
 	expired := time.Now().Add(10 * time.Second).Unix()
@@ -91,7 +91,9 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	addedTask.OpenFile = task.HandleFile
 	addedTask.MNum = c.mNum
 	addedTask.RNum = c.rNum
+	c.hmu.Lock()
 	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
+	c.hmu.Unlock()
 	return nil
 
 }

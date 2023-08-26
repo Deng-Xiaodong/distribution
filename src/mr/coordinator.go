@@ -115,20 +115,20 @@ func (c *Coordinator) checkPoint() {
 	for true {
 		time.Sleep(time.Second)
 		c.hmu.Lock()
+		c.mu.Lock()
 		for c.taskHeap.Len() > 0 {
 			top := heap.Pop(c.taskHeap).(TaskExpired)
 			if top.taskExpired > time.Now().Unix() {
 				heap.Push(c.taskHeap, top)
 				break
 			}
-			c.mu.Lock()
 			task := c.doingTasks[top.taskId]
 			log.Printf(
 				"Found timed-out %s task %d previously running on worker %d. Prepare to re-assign",
 				task.Type, task.Index, task.WorkerID)
 			c.tasksChan <- task
-			c.mu.Unlock()
 		}
+		c.mu.Unlock()
 		c.hmu.Unlock()
 	}
 }
