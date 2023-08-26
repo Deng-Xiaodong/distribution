@@ -149,7 +149,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.rNum = nReduce
 	c.mNum = len(files)
 	c.state = MAP
-	c.tasksChan = make(chan Task, len(files))
+	c.tasksChan = make(chan Task, max(len(files), c.rNum))
 	c.doingTasks = make(map[string]Task)
 	c.taskHeap = new(TaskHeap)
 	heap.Init(c.taskHeap)
@@ -164,4 +164,11 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.server()
 	go c.checkPoint()
 	return &c
+}
+
+func max(a int, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
