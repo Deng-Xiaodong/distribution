@@ -25,12 +25,13 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	*/
 	if doneTask.TaskType != "" {
 		c.mu.Lock()
-		log.Printf("coordinator 获得mu锁\n")
+		//log.Printf("coordinator 获得mu锁\n")
 		c.hmu.Lock()
-		log.Printf("coordinator 获得hmu锁\n")
+		//log.Printf("coordinator 获得hmu锁\n")
 		index := -1
+		taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
 		for i := 0; i < c.taskHeap.Len(); i++ {
-			if (*c.taskHeap)[i].taskId == GenTaskID(doneTask.TaskIndex, doneTask.TaskType) {
+			if (*c.taskHeap)[i].taskId == taskID {
 				index = i
 				break
 			}
@@ -38,11 +39,10 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		if index >= 0 {
 			heap.Remove(c.taskHeap, index)
 		} else {
-			log.Printf("finished task %d from worker %d is invalid\n ", doneTask.TaskIndex, doneTask.WorkerID)
+			log.Printf("finished %s task %d from worker %d is invalid\n ", doneTask.TaskType, doneTask.TaskIndex, doneTask.WorkerID)
 		}
 		if index != -1 {
 
-			taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
 			if task, exist := c.doingTasks[taskID]; exist && task.Index == doneTask.TaskIndex {
 				if doneTask.TaskType == MAP {
 					for ri := 0; ri < c.rNum; ri++ {
@@ -73,9 +73,9 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 
 		}
 		c.hmu.Unlock()
-		log.Printf("coordinator 释放hmu锁\n")
+		//log.Printf("coordinator 释放hmu锁\n")
 		c.mu.Unlock()
-		log.Printf("coordinator 释放mu锁\n")
+		//log.Printf("coordinator 释放mu锁\n")
 	}
 
 	//2 封装新任务，并加入最小堆
@@ -85,11 +85,11 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	}
 	log.Printf("Assign %s task %d to worker %d\n", task.Type, task.Index, doneTask.WorkerID)
 	c.hmu.Lock()
-	log.Printf("coordinator 获得hmu锁\n")
+	//log.Printf("coordinator 获得hmu锁\n")
 	c.mu.Lock()
-	log.Printf("coordinator 获得mu锁\n")
+	//log.Printf("coordinator 获得mu锁\n")
 	task.WorkerID = doneTask.WorkerID
-	expired := time.Now().Add(10 * time.Second).Unix()
+	expired := time.Now().Add(15 * time.Second).Unix()
 	task.Expired = expired
 	c.doingTasks[GenTaskID(task.Index, task.Type)] = task
 	addedTask.TaskIndex = task.Index
@@ -97,13 +97,13 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	addedTask.OpenFile = task.HandleFile
 	addedTask.MNum = c.mNum
 	addedTask.RNum = c.rNum
-	log.Printf("准备推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
+	//log.Printf("准备推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
-	log.Printf("成功推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
+	//log.Printf("成功推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	c.hmu.Unlock()
-	log.Printf("coordinator 释放hmu锁\n")
+	//log.Printf("coordinator 释放hmu锁\n")
 	c.mu.Unlock()
-	log.Printf("coordinator 释放mu锁\n")
+	//log.Printf("coordinator 释放mu锁\n")
 	return nil
 
 }

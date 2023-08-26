@@ -113,11 +113,11 @@ func (c *Coordinator) transit() {
 
 func (c *Coordinator) checkPoint() {
 	for true {
-		time.Sleep(time.Second)
+		time.Sleep(500 * time.Millisecond)
 		c.mu.Lock()
-		log.Printf("checkPoint 获得mu锁\n")
+		//log.Printf("checkPoint 获得mu锁\n")
 		c.hmu.Lock()
-		log.Printf("checkPoint 获得hmu锁\n")
+		//log.Printf("checkPoint 获得hmu锁\n")
 
 		for c.taskHeap.Len() > 0 {
 			top := heap.Pop(c.taskHeap).(TaskExpired)
@@ -132,9 +132,9 @@ func (c *Coordinator) checkPoint() {
 			c.tasksChan <- task
 		}
 		c.hmu.Unlock()
-		log.Printf("checkPoint 释放hmu锁\n")
+		//log.Printf("checkPoint 释放hmu锁\n")
 		c.mu.Unlock()
-		log.Printf("checkPoint 释放mu锁\n")
+		//log.Printf("checkPoint 释放mu锁\n")
 
 	}
 }
