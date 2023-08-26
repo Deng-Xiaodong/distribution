@@ -18,12 +18,12 @@ const (
 )
 
 type Task struct {
-	WorkerID   int
+	WorkerID   string
 	Index      int
 	Type       string
 	HandleFile string
 	MNum, RNum int
-	Expired    int64
+	Expired    time.Time
 }
 type TaskExpired struct {
 	taskId      string
@@ -116,23 +116,34 @@ func (c *Coordinator) checkPoint() {
 		time.Sleep(500 * time.Millisecond)
 		c.mu.Lock()
 		//log.Printf("checkPoint 获得mu锁\n")
-		c.hmu.Lock()
+		//c.hmu.Lock()
 		//log.Printf("checkPoint 获得hmu锁\n")
 
-		for c.taskHeap.Len() > 0 {
-			top := heap.Pop(c.taskHeap).(TaskExpired)
-			if top.taskExpired > time.Now().Unix() {
-				heap.Push(c.taskHeap, top)
-				break
-			}
-			task := c.doingTasks[top.taskId]
-			log.Printf(
-				"Found timed-out %s task %d previously running on worker %d. Prepare to re-assign",
-				task.Type, task.Index, task.WorkerID)
-			c.tasksChan <- task
-		}
-		c.hmu.Unlock()
+		//for c.taskHeap.Len() > 0 {
+		//	top := heap.Pop(c.taskHeap).(TaskExpired)
+		//	if top.taskExpired > time.Now().Unix() {
+		//		heap.Push(c.taskHeap, top)
+		//		break
+		//	}
+		//	task := c.doingTasks[top.taskId]
+		//	log.Printf(
+		//		"Found timed-out %s task %d previously running on worker %d. Prepare to re-assign",
+		//		task.Type, task.Index, task.WorkerID)
+		//	c.tasksChan <- task
+		//}
+		//c.hmu.Unlock()
 		//log.Printf("checkPoint 释放hmu锁\n")
+
+		for _, task := range c.doingTasks {
+			if task.WorkerID != "" && time.Now().After(task.Expired) {
+				// 回收并重新分配
+				log.Printf(
+					"Found timed-out %s task %d previously running on worker %s. Prepare to re-assign",
+					task.Type, task.Index, task.WorkerID)
+				task.WorkerID = ""
+				c.tasksChan <- task
+			}
+		}
 		c.mu.Unlock()
 		//log.Printf("checkPoint 释放mu锁\n")
 

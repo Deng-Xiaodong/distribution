@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 )
 import "log"
@@ -50,8 +51,8 @@ func Worker(mapf func(string, string) []KeyValue,
 		3 如果新任务是reduce任务
 			- reduce处理
 	*/
-	workerID := os.Getpid()
-	log.Printf("Worker %d started\n", workerID)
+	workerID := strconv.Itoa(os.Getpid())
+	log.Printf("Worker %s started\n", workerID)
 	doneTask := DoneTaskArgs{WorkerID: workerID}
 	addedTask := &AddedTaskRly{}
 	for true {

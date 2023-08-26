@@ -7,7 +7,6 @@ package mr
 //
 
 import (
-	"container/heap"
 	"fmt"
 	"log"
 	"os"
@@ -28,18 +27,18 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		//log.Printf("coordinator 获得mu锁\n")
 		c.hmu.Lock()
 		//log.Printf("coordinator 获得hmu锁\n")
-		index := -1
+		//index := -1
 		taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
 		if task, exist := c.doingTasks[taskID]; exist && task.WorkerID == doneTask.WorkerID {
-			for i := 0; i < c.taskHeap.Len(); i++ {
-				if (*c.taskHeap)[i].taskId == taskID {
-					index = i
-					break
-				}
-			}
-			if index >= 0 {
-				heap.Remove(c.taskHeap, index)
-			}
+			//for i := 0; i < c.taskHeap.Len(); i++ {
+			//	if (*c.taskHeap)[i].taskId == taskID {
+			//		index = i
+			//		break
+			//	}
+			//}
+			//if index >= 0 {
+			//	heap.Remove(c.taskHeap, index)
+			//}
 			if doneTask.TaskType == MAP {
 				for ri := 0; ri < c.rNum; ri++ {
 					err := os.Rename(GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri),
@@ -77,13 +76,13 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	if !ok {
 		return nil
 	}
-	log.Printf("Assign %s task %d to worker %d\n", task.Type, task.Index, doneTask.WorkerID)
+	log.Printf("Assign %s task %d to worker %s\n", task.Type, task.Index, doneTask.WorkerID)
 	c.hmu.Lock()
 	//log.Printf("coordinator 获得hmu锁\n")
 	c.mu.Lock()
 	//log.Printf("coordinator 获得mu锁\n")
 	task.WorkerID = doneTask.WorkerID
-	expired := time.Now().Add(15 * time.Second).Unix()
+	expired := time.Now().Add(15 * time.Second)
 	task.Expired = expired
 	c.doingTasks[GenTaskID(task.Index, task.Type)] = task
 	(*addedTask).TaskIndex = task.Index
@@ -92,7 +91,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	(*addedTask).MNum = c.mNum
 	(*addedTask).RNum = c.rNum
 	//log.Printf("准备推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
-	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
+	//heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
 	//log.Printf("成功推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	c.hmu.Unlock()
 	//log.Printf("coordinator 释放hmu锁\n")
@@ -107,7 +106,7 @@ func GenTaskID(index int, ty string) string {
 
 // Add your RPC definitions here.
 type DoneTaskArgs struct {
-	WorkerID  int
+	WorkerID  string
 	TaskIndex int
 	TaskType  string
 }
@@ -119,14 +118,14 @@ type AddedTaskRly struct {
 	//Expired   int64
 }
 
-func GenMapTempFile(workId, taskIndex, reduceOrder int) string {
-	return fmt.Sprintf("/var/tmp/mapDict/temp/%d_%d_%d", workId, taskIndex, reduceOrder)
+func GenMapTempFile(workId string, taskIndex, reduceOrder int) string {
+	return fmt.Sprintf("/var/tmp/mapDict/temp/%s_%d_%d", workId, taskIndex, reduceOrder)
 }
 func GenMapFinalFile(taskIndex, reduceOrder int) string {
 	return fmt.Sprintf("/var/tmp/mapDict/final/%d_%d", taskIndex, reduceOrder)
 }
-func GenReduceTempFile(workId, taskIndex int) string {
-	return fmt.Sprintf("/var/tmp/reduceDict/temp/%d_%d", workId, taskIndex)
+func GenReduceTempFile(workId string, taskIndex int) string {
+	return fmt.Sprintf("/var/tmp/reduceDict/temp/%s_%d", workId, taskIndex)
 }
 func GenReduceFinalFile(taskIndex int) string {
 	return fmt.Sprintf("/var/tmp/reduceDict/final/%d", taskIndex)
