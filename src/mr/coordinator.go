@@ -1,7 +1,6 @@
 package mr
 
 import (
-	"container/heap"
 	"log"
 	"net"
 	"net/http"
@@ -22,8 +21,8 @@ type Task struct {
 	Index      int
 	Type       string
 	HandleFile string
-	MNum, RNum int
-	Expired    time.Time
+	//MNum, RNum int
+	Expired time.Time
 }
 type TaskExpired struct {
 	taskId      string
@@ -64,7 +63,7 @@ type Coordinator struct {
 	tasksChan  chan Task
 	doingTasks map[string]Task
 	state      string
-	taskHeap   *TaskHeap
+	//taskHeap   *TaskHeap
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -100,7 +99,7 @@ func (c *Coordinator) transit() {
 		//转入到reduce阶段
 		c.state = REDUCE
 		for i := 0; i < c.rNum; i++ {
-			task := Task{Type: REDUCE, Index: i, MNum: c.mNum, RNum: c.rNum}
+			task := Task{Type: REDUCE, Index: i}
 			c.doingTasks[GenTaskID(task.Index, task.Type)] = task
 			c.tasksChan <- task
 		}
@@ -162,10 +161,10 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.state = MAP
 	c.tasksChan = make(chan Task, max(len(files), c.rNum))
 	c.doingTasks = make(map[string]Task)
-	c.taskHeap = new(TaskHeap)
-	heap.Init(c.taskHeap)
+	//c.taskHeap = new(TaskHeap)
+	//heap.Init(c.taskHeap)
 	for i, file := range files {
-		task := Task{Type: MAP, Index: i, HandleFile: file, MNum: c.mNum, RNum: c.rNum}
+		task := Task{Type: MAP, Index: i, HandleFile: file}
 		c.doingTasks[GenTaskID(task.Index, task.Type)] = task
 		c.tasksChan <- task
 	}

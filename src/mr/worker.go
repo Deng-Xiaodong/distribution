@@ -53,10 +53,14 @@ func Worker(mapf func(string, string) []KeyValue,
 	*/
 	workerID := strconv.Itoa(os.Getpid())
 	log.Printf("Worker %s started\n", workerID)
-	doneTask := DoneTaskArgs{WorkerID: workerID}
-	addedTask := &AddedTaskRly{}
+	var doneTaskType string
+	var doneTaskIndex int
+	//doneTask := DoneTaskArgs{WorkerID: workerID}
+	//addedTask := &AddedTaskRly{}
 	for true {
-		if call("Coordinator.ApplyTask", doneTask, addedTask) {
+		doneTask := DoneTaskArgs{WorkerID: workerID, TaskType: doneTaskType, TaskIndex: doneTaskIndex}
+		addedTask := AddedTaskRly{}
+		if call("Coordinator.ApplyTask", &doneTask, &addedTask) {
 			if addedTask.TaskType == FINISHED {
 				log.Printf("Received job finish signal from coordinator")
 				break
@@ -72,7 +76,7 @@ func Worker(mapf func(string, string) []KeyValue,
 				if errR != nil {
 					log.Fatal(errR)
 				}
-				file.Close()
+				//file.Close()
 				KVs := mapf(addedTask.OpenFile, string(text))
 				hashKV := make(map[int][]KeyValue)
 				for _, kv := range KVs {
@@ -94,7 +98,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 			} else if addedTask.TaskType == REDUCE {
 				var lines []string
-				var kvsInOrder ByKey
+				var kvsInOrder []KeyValue
 				for i := 0; i < addedTask.MNum; i++ {
 					mapFile, err := os.Open(GenMapFinalFile(i, addedTask.TaskIndex))
 					if err != nil {
@@ -118,7 +122,7 @@ func Worker(mapf func(string, string) []KeyValue,
 					kvsInOrder = append(kvsInOrder, KeyValue{Key: split[0], Value: split[1]})
 
 				}
-				sort.Sort(kvsInOrder)
+				sort.Sort(ByKey(kvsInOrder))
 				outFile, err := os.Create(GenReduceTempFile(workerID, addedTask.TaskIndex))
 
 				i := 0
@@ -143,11 +147,11 @@ func Worker(mapf func(string, string) []KeyValue,
 			}
 
 		}
-		doneTask.TaskIndex = addedTask.TaskIndex
-		doneTask.TaskType = addedTask.TaskType
+		doneTaskIndex = addedTask.TaskIndex
+		doneTaskType = addedTask.TaskType
 		log.Printf("Finished %s task %d", addedTask.TaskType, addedTask.TaskIndex)
 	}
-	log.Printf("Worker %d exit\n", workerID)
+	log.Printf("Worker %s exit\n", workerID)
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 

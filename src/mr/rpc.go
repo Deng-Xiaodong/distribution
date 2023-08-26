@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) error {
+func (c *Coordinator) ApplyTask(doneTask *DoneTaskArgs, addedTask *AddedTaskRly) error {
 
 	//1 处理worker任务完成响应
 	/*
@@ -25,7 +25,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	if doneTask.TaskType != "" {
 		c.mu.Lock()
 		//log.Printf("coordinator 获得mu锁\n")
-		c.hmu.Lock()
+		//c.hmu.Lock()
 		//log.Printf("coordinator 获得hmu锁\n")
 		//index := -1
 		taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
@@ -65,7 +65,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 			}
 
 		}
-		c.hmu.Unlock()
+		//c.hmu.Unlock()
 		//log.Printf("coordinator 释放hmu锁\n")
 		c.mu.Unlock()
 		//log.Printf("coordinator 释放mu锁\n")
@@ -77,7 +77,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		return nil
 	}
 	log.Printf("Assign %s task %d to worker %s\n", task.Type, task.Index, doneTask.WorkerID)
-	c.hmu.Lock()
+	//c.hmu.Lock()
 	//log.Printf("coordinator 获得hmu锁\n")
 	c.mu.Lock()
 	//log.Printf("coordinator 获得mu锁\n")
@@ -93,7 +93,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	//log.Printf("准备推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	//heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
 	//log.Printf("成功推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
-	c.hmu.Unlock()
+	//c.hmu.Unlock()
 	//log.Printf("coordinator 释放hmu锁\n")
 	c.mu.Unlock()
 	//log.Printf("coordinator 释放mu锁\n")
