@@ -119,9 +119,9 @@ func (c *Coordinator) checkPoint() {
 	for true {
 		time.Sleep(time.Second)
 		c.hmu.Lock()
-		log.Printf("coordinator 获得hmu锁\n")
+		log.Printf("checkPoint 获得hmu锁\n")
 		c.mu.Lock()
-		log.Printf("coordinator 获得mu锁\n")
+		log.Printf("checkPoint 获得mu锁\n")
 		for c.taskHeap.Len() > 0 {
 			top := heap.Pop(c.taskHeap).(TaskExpired)
 			if top.taskExpired > time.Now().Unix() {
@@ -135,9 +135,9 @@ func (c *Coordinator) checkPoint() {
 			c.tasksChan <- task
 		}
 		c.mu.Unlock()
-		log.Printf("coordinator 释放mu锁\n")
+		log.Printf("checkPoint 释放mu锁\n")
 		c.hmu.Unlock()
-		log.Printf("coordinator 释放hmu锁\n")
+		log.Printf("checkPoint 释放hmu锁\n")
 	}
 }
 

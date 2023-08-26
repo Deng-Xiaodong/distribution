@@ -83,6 +83,8 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		return nil
 	}
 	log.Printf("Assign %s task %d to worker %d\n", task.Type, task.Index, doneTask.WorkerID)
+	c.hmu.Lock()
+	log.Printf("coordinator 获得hmu锁\n")
 	c.mu.Lock()
 	log.Printf("coordinator 获得mu锁\n")
 	task.WorkerID = doneTask.WorkerID
@@ -94,8 +96,6 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	addedTask.OpenFile = task.HandleFile
 	addedTask.MNum = c.mNum
 	addedTask.RNum = c.rNum
-	c.hmu.Lock()
-	log.Printf("coordinator 获得hmu锁\n")
 	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
 	c.hmu.Unlock()
 	log.Printf("coordinator 释放hmu锁\n")
