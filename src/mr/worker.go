@@ -50,8 +50,8 @@ func Worker(mapf func(string, string) []KeyValue,
 		3 如果新任务是reduce任务
 			- reduce处理
 	*/
-	workerID := os.Getegid()
-	log.Printf("Worker %s started\n", workerID)
+	workerID := os.Getpid()
+	log.Printf("Worker %d started\n", workerID)
 	doneTask := DoneTaskArgs{WorkerID: workerID}
 	addedTask := &AddedTaskRly{}
 	for true {
@@ -146,7 +146,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		doneTask.TaskType = addedTask.TaskType
 		log.Printf("Finished %s task %d", addedTask.TaskType, addedTask.TaskIndex)
 	}
-	log.Printf("Worker %s exit\n", workerID)
+	log.Printf("Worker %d exit\n", workerID)
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 

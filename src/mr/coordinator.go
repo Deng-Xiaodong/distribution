@@ -59,7 +59,7 @@ type Coordinator struct {
 	//待处理任务队列（channel）
 	//正在执行的任务队列（字典）
 	//所处阶段(MAP REDUCE FINISHED)
-	mu         sync.Mutex
+	mu, hmu    sync.Mutex
 	mNum, rNum int
 	tasksChan  chan Task
 	doingTasks map[string]Task
@@ -114,6 +114,7 @@ func (c *Coordinator) transit() {
 func (c *Coordinator) checkPoint() {
 	for true {
 		time.Sleep(time.Second)
+		c.hmu.Lock()
 		for c.taskHeap.Len() > 0 {
 			top := heap.Pop(c.taskHeap).(TaskExpired)
 			if top.taskExpired > time.Now().Unix() {
@@ -123,11 +124,12 @@ func (c *Coordinator) checkPoint() {
 			c.mu.Lock()
 			task := c.doingTasks[top.taskId]
 			log.Printf(
-				"Found timed-out %s task %d previously running on worker %s. Prepare to re-assign",
+				"Found timed-out %s task %d previously running on worker %d. Prepare to re-assign",
 				task.Type, task.Index, task.WorkerID)
 			c.tasksChan <- task
 			c.mu.Unlock()
 		}
+		c.hmu.Unlock()
 	}
 }
 

@@ -24,36 +24,53 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		8 检查是否应该切换到下一阶段
 	*/
 	if doneTask.TaskType != "" {
-		c.mu.Lock()
-		taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
-		if task, exist := c.doingTasks[taskID]; exist && task.Index == doneTask.TaskIndex {
-			if doneTask.TaskType == MAP {
-				for ri := 0; ri < c.rNum; ri++ {
-					err := os.Rename(GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri),
-						GenMapFinalFile(doneTask.TaskIndex, ri))
-					if err != nil {
-						log.Fatalf(
-							"Failed to mark map output file `%s` as final: %e",
-							GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri), err)
+		c.hmu.Lock()
+		index := -1
+		for i := 0; i < c.taskHeap.Len(); i++ {
+			if (*c.taskHeap)[i].taskId == GenTaskID(doneTask.TaskIndex, doneTask.TaskType) {
+				index = i
+				break
+			}
+		}
+		if index >= 0 {
+			heap.Remove(c.taskHeap, index)
+		} else {
+			log.Printf("finished task %d from worker %d is invalid\n ", doneTask.TaskIndex, doneTask.WorkerID)
+		}
+		c.hmu.Unlock()
+		if index != -1 {
+			c.mu.Lock()
+			taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
+			if task, exist := c.doingTasks[taskID]; exist && task.Index == doneTask.TaskIndex {
+				if doneTask.TaskType == MAP {
+					for ri := 0; ri < c.rNum; ri++ {
+						err := os.Rename(GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri),
+							GenMapFinalFile(doneTask.TaskIndex, ri))
+						if err != nil {
+							log.Fatalf(
+								"Failed to mark map output file `%s` as final: %e",
+								GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri), err)
+						}
 					}
-				}
 
-			} else if doneTask.TaskType == REDUCE {
-				err := os.Rename(GenReduceTempFile(doneTask.WorkerID, doneTask.TaskIndex),
-					GenReduceFinalFile(doneTask.TaskIndex))
-				if err != nil {
-					log.Fatalf("Failed to mark reduce output file `%s` as final %e",
-						GenReduceFinalFile(doneTask.TaskIndex), err)
+				} else if doneTask.TaskType == REDUCE {
+					err := os.Rename(GenReduceTempFile(doneTask.WorkerID, doneTask.TaskIndex),
+						GenReduceFinalFile(doneTask.TaskIndex))
+					if err != nil {
+						log.Fatalf("Failed to mark reduce output file `%s` as final %e",
+							GenReduceFinalFile(doneTask.TaskIndex), err)
+					}
+
+				}
+				delete(c.doingTasks, taskID)
+				if len(c.doingTasks) == 0 {
+					c.transit()
 				}
 
 			}
-			delete(c.doingTasks, taskID)
-			if len(c.doingTasks) == 0 {
-				c.transit()
-			}
+			c.mu.Unlock()
 
 		}
-		c.mu.Unlock()
 
 	}
 
@@ -62,7 +79,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	if !ok {
 		return nil
 	}
-	log.Printf("Assign %s task %d to worker %s\n", task.Type, task.Index, doneTask.WorkerID)
+	log.Printf("Assign %s task %d to worker %d\n", task.Type, task.Index, doneTask.WorkerID)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	task.WorkerID = doneTask.WorkerID
