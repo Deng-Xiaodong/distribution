@@ -24,6 +24,8 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		8 检查是否应该切换到下一阶段
 	*/
 	if doneTask.TaskType != "" {
+		c.mu.Lock()
+		log.Printf("coordinator 获得mu锁\n")
 		c.hmu.Lock()
 		log.Printf("coordinator 获得hmu锁\n")
 		index := -1
@@ -38,11 +40,8 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		} else {
 			log.Printf("finished task %d from worker %d is invalid\n ", doneTask.TaskIndex, doneTask.WorkerID)
 		}
-		c.hmu.Unlock()
-		log.Printf("coordinator 释放hmu锁\n")
 		if index != -1 {
-			c.mu.Lock()
-			log.Printf("coordinator 获得mu锁\n")
+
 			taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
 			if task, exist := c.doingTasks[taskID]; exist && task.Index == doneTask.TaskIndex {
 				if doneTask.TaskType == MAP {
@@ -71,10 +70,12 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 				}
 
 			}
-			c.mu.Unlock()
-			log.Printf("coordinator 释放mu锁\n")
-		}
 
+		}
+		c.hmu.Unlock()
+		log.Printf("coordinator 释放hmu锁\n")
+		c.mu.Unlock()
+		log.Printf("coordinator 释放mu锁\n")
 	}
 
 	//2 封装新任务，并加入最小堆

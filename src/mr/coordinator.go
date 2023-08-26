@@ -96,8 +96,6 @@ func (c *Coordinator) Done() bool {
 
 func (c *Coordinator) transit() {
 	if c.state == MAP {
-		c.mu.Lock()
-		log.Printf("coordinator 获得mu锁\n")
 		log.Printf("All MAP tasks finished. Transit to REDUCE stage\n")
 		//转入到reduce阶段
 		c.state = REDUCE
@@ -106,8 +104,6 @@ func (c *Coordinator) transit() {
 			c.doingTasks[GenTaskID(task.Index, task.Type)] = task
 			c.tasksChan <- task
 		}
-		c.mu.Unlock()
-		log.Printf("coordinator 释放mu锁\n")
 	} else if c.state == REDUCE {
 		log.Printf("All REDUCE tasks finished. Prepare to exit\n")
 		c.state = FINISHED
@@ -118,10 +114,11 @@ func (c *Coordinator) transit() {
 func (c *Coordinator) checkPoint() {
 	for true {
 		time.Sleep(time.Second)
-		c.hmu.Lock()
-		log.Printf("checkPoint 获得hmu锁\n")
 		c.mu.Lock()
 		log.Printf("checkPoint 获得mu锁\n")
+		c.hmu.Lock()
+		log.Printf("checkPoint 获得hmu锁\n")
+
 		for c.taskHeap.Len() > 0 {
 			top := heap.Pop(c.taskHeap).(TaskExpired)
 			if top.taskExpired > time.Now().Unix() {
@@ -134,10 +131,11 @@ func (c *Coordinator) checkPoint() {
 				task.Type, task.Index, task.WorkerID)
 			c.tasksChan <- task
 		}
-		c.mu.Unlock()
-		log.Printf("checkPoint 释放mu锁\n")
 		c.hmu.Unlock()
 		log.Printf("checkPoint 释放hmu锁\n")
+		c.mu.Unlock()
+		log.Printf("checkPoint 释放mu锁\n")
+
 	}
 }
 
