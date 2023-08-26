@@ -30,45 +30,39 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 		//log.Printf("coordinator 获得hmu锁\n")
 		index := -1
 		taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
-		for i := 0; i < c.taskHeap.Len(); i++ {
-			if (*c.taskHeap)[i].taskId == taskID {
-				index = i
-				break
+		if task, exist := c.doingTasks[taskID]; exist && task.WorkerID == doneTask.WorkerID {
+			for i := 0; i < c.taskHeap.Len(); i++ {
+				if (*c.taskHeap)[i].taskId == taskID {
+					index = i
+					break
+				}
 			}
-		}
-		if index >= 0 {
-			heap.Remove(c.taskHeap, index)
-		} else {
-			log.Printf("finished %s task %d from worker %d is invalid\n ", doneTask.TaskType, doneTask.TaskIndex, doneTask.WorkerID)
-		}
-		if index != -1 {
-
-			if task, exist := c.doingTasks[taskID]; exist && task.Index == doneTask.TaskIndex {
-				if doneTask.TaskType == MAP {
-					for ri := 0; ri < c.rNum; ri++ {
-						err := os.Rename(GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri),
-							GenMapFinalFile(doneTask.TaskIndex, ri))
-						if err != nil {
-							log.Fatalf(
-								"Failed to mark map output file `%s` as final: %e",
-								GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri), err)
-						}
-					}
-
-				} else if doneTask.TaskType == REDUCE {
-					err := os.Rename(GenReduceTempFile(doneTask.WorkerID, doneTask.TaskIndex),
-						GenReduceFinalFile(doneTask.TaskIndex))
+			if index >= 0 {
+				heap.Remove(c.taskHeap, index)
+			}
+			if doneTask.TaskType == MAP {
+				for ri := 0; ri < c.rNum; ri++ {
+					err := os.Rename(GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri),
+						GenMapFinalFile(doneTask.TaskIndex, ri))
 					if err != nil {
-						log.Fatalf("Failed to mark reduce output file `%s` as final %e",
-							GenReduceFinalFile(doneTask.TaskIndex), err)
+						log.Fatalf(
+							"Failed to mark map output file `%s` as final: %e",
+							GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri), err)
 					}
-
-				}
-				delete(c.doingTasks, taskID)
-				if len(c.doingTasks) == 0 {
-					c.transit()
 				}
 
+			} else if doneTask.TaskType == REDUCE {
+				err := os.Rename(GenReduceTempFile(doneTask.WorkerID, doneTask.TaskIndex),
+					GenReduceFinalFile(doneTask.TaskIndex))
+				if err != nil {
+					log.Fatalf("Failed to mark reduce output file `%s` as final %e",
+						GenReduceFinalFile(doneTask.TaskIndex), err)
+				}
+
+			}
+			delete(c.doingTasks, taskID)
+			if len(c.doingTasks) == 0 {
+				c.transit()
 			}
 
 		}
