@@ -86,11 +86,11 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	expired := time.Now().Add(15 * time.Second).Unix()
 	task.Expired = expired
 	c.doingTasks[GenTaskID(task.Index, task.Type)] = task
-	addedTask.TaskIndex = task.Index
-	addedTask.TaskType = task.Type
-	addedTask.OpenFile = task.HandleFile
-	addedTask.MNum = c.mNum
-	addedTask.RNum = c.rNum
+	(*addedTask).TaskIndex = task.Index
+	(*addedTask).TaskType = task.Type
+	(*addedTask).OpenFile = task.HandleFile
+	(*addedTask).MNum = c.mNum
+	(*addedTask).RNum = c.rNum
 	//log.Printf("准备推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
 	//log.Printf("成功推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
