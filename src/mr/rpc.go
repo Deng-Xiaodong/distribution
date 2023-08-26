@@ -97,7 +97,9 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	addedTask.OpenFile = task.HandleFile
 	addedTask.MNum = c.mNum
 	addedTask.RNum = c.rNum
+	log.Printf("准备推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
+	log.Printf("成功推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	c.hmu.Unlock()
 	log.Printf("coordinator 释放hmu锁\n")
 	c.mu.Unlock()
