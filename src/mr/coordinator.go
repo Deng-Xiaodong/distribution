@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"container/heap"
 	"log"
 	"net"
 	"net/http"
@@ -26,7 +27,7 @@ type Task struct {
 }
 type TaskExpired struct {
 	taskId      string
-	taskExpired int64
+	taskExpired time.Time
 }
 type TaskHeap []TaskExpired
 
@@ -35,7 +36,7 @@ func (t TaskHeap) Len() int {
 }
 
 func (t TaskHeap) Less(i, j int) bool {
-	return t[i].taskExpired < t[j].taskExpired
+	return t[j].taskExpired.After(t[i].taskExpired)
 }
 
 func (t *TaskHeap) Swap(i, j int) {
@@ -63,7 +64,7 @@ type Coordinator struct {
 	tasksChan  chan Task
 	doingTasks map[string]Task
 	state      string
-	//taskHeap   *TaskHeap
+	taskHeap   *TaskHeap
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -118,31 +119,31 @@ func (c *Coordinator) checkPoint() {
 		//c.hmu.Lock()
 		//log.Printf("checkPoint 获得hmu锁\n")
 
-		//for c.taskHeap.Len() > 0 {
-		//	top := heap.Pop(c.taskHeap).(TaskExpired)
-		//	if top.taskExpired > time.Now().Unix() {
-		//		heap.Push(c.taskHeap, top)
-		//		break
-		//	}
-		//	task := c.doingTasks[top.taskId]
-		//	log.Printf(
-		//		"Found timed-out %s task %d previously running on worker %d. Prepare to re-assign",
-		//		task.Type, task.Index, task.WorkerID)
-		//	c.tasksChan <- task
-		//}
+		for c.taskHeap.Len() > 0 {
+			top := heap.Pop(c.taskHeap).(TaskExpired)
+			if top.taskExpired.After(time.Now()) {
+				heap.Push(c.taskHeap, top)
+				break
+			}
+			task := c.doingTasks[top.taskId]
+			log.Printf(
+				"Found timed-out %s task %d previously running on worker %d. Prepare to re-assign",
+				task.Type, task.Index, task.WorkerID)
+			c.tasksChan <- task
+		}
 		//c.hmu.Unlock()
 		//log.Printf("checkPoint 释放hmu锁\n")
 
-		for _, task := range c.doingTasks {
-			if task.WorkerID != "" && time.Now().After(task.Expired) {
-				// 回收并重新分配
-				log.Printf(
-					"Found timed-out %s task %d previously running on worker %s. Prepare to re-assign",
-					task.Type, task.Index, task.WorkerID)
-				task.WorkerID = ""
-				c.tasksChan <- task
-			}
-		}
+		//for _, task := range c.doingTasks {
+		//	if task.WorkerID != "" && time.Now().After(task.Expired) {
+		//		// 回收并重新分配
+		//		log.Printf(
+		//			"Found timed-out %s task %d previously running on worker %s. Prepare to re-assign",
+		//			task.Type, task.Index, task.WorkerID)
+		//		task.WorkerID = ""
+		//		c.tasksChan <- task
+		//	}
+		//}
 		c.mu.Unlock()
 		//log.Printf("checkPoint 释放mu锁\n")
 
@@ -161,8 +162,8 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.state = MAP
 	c.tasksChan = make(chan Task, max(len(files), c.rNum))
 	c.doingTasks = make(map[string]Task)
-	//c.taskHeap = new(TaskHeap)
-	//heap.Init(c.taskHeap)
+	c.taskHeap = new(TaskHeap)
+	heap.Init(c.taskHeap)
 	for i, file := range files {
 		task := Task{Type: MAP, Index: i, HandleFile: file}
 		c.doingTasks[GenTaskID(task.Index, task.Type)] = task

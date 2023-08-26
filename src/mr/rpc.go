@@ -7,6 +7,7 @@ package mr
 //
 
 import (
+	"container/heap"
 	"fmt"
 	"log"
 	"os"
@@ -27,18 +28,18 @@ func (c *Coordinator) ApplyTask(doneTask *DoneTaskArgs, addedTask *AddedTaskRly)
 		//log.Printf("coordinator 获得mu锁\n")
 		//c.hmu.Lock()
 		//log.Printf("coordinator 获得hmu锁\n")
-		//index := -1
+		index := -1
 		taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
 		if task, exist := c.doingTasks[taskID]; exist && task.WorkerID == doneTask.WorkerID {
-			//for i := 0; i < c.taskHeap.Len(); i++ {
-			//	if (*c.taskHeap)[i].taskId == taskID {
-			//		index = i
-			//		break
-			//	}
-			//}
-			//if index >= 0 {
-			//	heap.Remove(c.taskHeap, index)
-			//}
+			for i := 0; i < c.taskHeap.Len(); i++ {
+				if (*c.taskHeap)[i].taskId == taskID {
+					index = i
+					break
+				}
+			}
+			if index >= 0 {
+				heap.Remove(c.taskHeap, index)
+			}
 			if doneTask.TaskType == MAP {
 				for ri := 0; ri < c.rNum; ri++ {
 					err := os.Rename(GenMapTempFile(doneTask.WorkerID, doneTask.TaskIndex, ri),
@@ -74,6 +75,7 @@ func (c *Coordinator) ApplyTask(doneTask *DoneTaskArgs, addedTask *AddedTaskRly)
 	//2 封装新任务，并加入最小堆
 	task, ok := <-c.tasksChan
 	if !ok {
+		addedTask.TaskType = FINISHED
 		return nil
 	}
 	log.Printf("Assign %s task %d to worker %s\n", task.Type, task.Index, doneTask.WorkerID)
@@ -91,7 +93,7 @@ func (c *Coordinator) ApplyTask(doneTask *DoneTaskArgs, addedTask *AddedTaskRly)
 	(*addedTask).MNum = c.mNum
 	(*addedTask).RNum = c.rNum
 	//log.Printf("准备推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
-	//heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
+	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
 	//log.Printf("成功推入%s %d 到最小堆", addedTask.TaskType, addedTask.TaskIndex)
 	//c.hmu.Unlock()
 	//log.Printf("coordinator 释放hmu锁\n")
