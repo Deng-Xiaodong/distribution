@@ -96,6 +96,8 @@ func (c *Coordinator) Done() bool {
 
 func (c *Coordinator) transit() {
 	if c.state == MAP {
+		c.mu.Lock()
+		log.Printf("coordinator 获得mu锁\n")
 		log.Printf("All MAP tasks finished. Transit to REDUCE stage\n")
 		//转入到reduce阶段
 		c.state = REDUCE
@@ -104,6 +106,8 @@ func (c *Coordinator) transit() {
 			c.doingTasks[GenTaskID(task.Index, task.Type)] = task
 			c.tasksChan <- task
 		}
+		c.mu.Unlock()
+		log.Printf("coordinator 释放mu锁\n")
 	} else if c.state == REDUCE {
 		log.Printf("All REDUCE tasks finished. Prepare to exit\n")
 		c.state = FINISHED
@@ -115,7 +119,9 @@ func (c *Coordinator) checkPoint() {
 	for true {
 		time.Sleep(time.Second)
 		c.hmu.Lock()
+		log.Printf("coordinator 获得hmu锁\n")
 		c.mu.Lock()
+		log.Printf("coordinator 获得mu锁\n")
 		for c.taskHeap.Len() > 0 {
 			top := heap.Pop(c.taskHeap).(TaskExpired)
 			if top.taskExpired > time.Now().Unix() {
@@ -129,7 +135,9 @@ func (c *Coordinator) checkPoint() {
 			c.tasksChan <- task
 		}
 		c.mu.Unlock()
+		log.Printf("coordinator 释放mu锁\n")
 		c.hmu.Unlock()
+		log.Printf("coordinator 释放hmu锁\n")
 	}
 }
 
@@ -154,8 +162,8 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	}
 
 	//开启后台线程周期性检查 任务是否处理超时，及时将任务送回待处理队列
-	go c.checkPoint()
 	log.Printf("Coordinator start\n")
 	c.server()
+	go c.checkPoint()
 	return &c
 }

@@ -25,6 +25,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	*/
 	if doneTask.TaskType != "" {
 		c.hmu.Lock()
+		log.Printf("coordinator 获得hmu锁\n")
 		index := -1
 		for i := 0; i < c.taskHeap.Len(); i++ {
 			if (*c.taskHeap)[i].taskId == GenTaskID(doneTask.TaskIndex, doneTask.TaskType) {
@@ -38,8 +39,10 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 			log.Printf("finished task %d from worker %d is invalid\n ", doneTask.TaskIndex, doneTask.WorkerID)
 		}
 		c.hmu.Unlock()
+		log.Printf("coordinator 释放hmu锁\n")
 		if index != -1 {
 			c.mu.Lock()
+			log.Printf("coordinator 获得mu锁\n")
 			taskID := GenTaskID(doneTask.TaskIndex, doneTask.TaskType)
 			if task, exist := c.doingTasks[taskID]; exist && task.Index == doneTask.TaskIndex {
 				if doneTask.TaskType == MAP {
@@ -69,6 +72,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 
 			}
 			c.mu.Unlock()
+			log.Printf("coordinator 释放mu锁\n")
 		}
 
 	}
@@ -80,8 +84,7 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	}
 	log.Printf("Assign %s task %d to worker %d\n", task.Type, task.Index, doneTask.WorkerID)
 	c.mu.Lock()
-	log.Println("获得新派任务锁")
-	defer c.mu.Unlock()
+	log.Printf("coordinator 获得mu锁\n")
 	task.WorkerID = doneTask.WorkerID
 	expired := time.Now().Add(10 * time.Second).Unix()
 	task.Expired = expired
@@ -92,8 +95,12 @@ func (c *Coordinator) ApplyTask(doneTask DoneTaskArgs, addedTask *AddedTaskRly) 
 	addedTask.MNum = c.mNum
 	addedTask.RNum = c.rNum
 	c.hmu.Lock()
+	log.Printf("coordinator 获得hmu锁\n")
 	heap.Push(c.taskHeap, TaskExpired{taskId: GenTaskID(task.Index, task.Type), taskExpired: expired})
 	c.hmu.Unlock()
+	log.Printf("coordinator 释放hmu锁\n")
+	c.mu.Unlock()
+	log.Printf("coordinator 释放mu锁\n")
 	return nil
 
 }
